@@ -1,0 +1,4 @@
+BOT_TOKEN = "7572643619:AAG8q4boizC4yO0AOTFx2q1FrXvKsy2BlNM"
+DB_PATH = "data/database.db"
+
+ADMIN_IDS = [428862346]
