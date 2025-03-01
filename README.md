@@ -45,9 +45,11 @@ fish-order-telegram-bot/
 ├── repositories/
 │   ├── product_repository.py
 │   └── order_repository.py
+│   └── user_repository
 ├── services/
 │   ├── product_service.py
 │   └── order_service.py
+│   └── user_service.py
 ├── keyboards/
 │   ├── inline.py
 │   └── reply.py
