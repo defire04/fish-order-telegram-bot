@@ -32,3 +32,10 @@ def get_stats():
     count = order_repository.get_orders_count()
     total = order_repository.get_total_revenue()
     return count, total
+
+
+def get_orders_count():
+    return order_repository.get_orders_count()
+
+def get_orders_page(page, page_size):
+    return order_repository.get_orders_page(page, page_size)

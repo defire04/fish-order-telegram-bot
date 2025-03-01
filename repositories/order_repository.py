@@ -71,3 +71,20 @@ def get_all_products():
     rows = cur.fetchall()
     conn.close()
     return rows
+
+from data.db import get_connection
+
+
+
+def get_orders_page(page: int, page_size: int):
+    offset = page * page_size
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT * FROM orders
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+    """, (page_size, offset))
+    rows = cur.fetchall()
+    conn.close()
+    return rows

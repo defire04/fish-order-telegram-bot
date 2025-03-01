@@ -127,7 +127,7 @@ def register_cart_handlers(bot: telebot.TeleBot):
             user_id, c,
             method, addr,
             phone, comment,
-            fn  # pass full_name
+            fn
         )
         user_carts[user_id] = {}
         user_flow.pop(user_id, None)
