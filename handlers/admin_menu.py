@@ -2,7 +2,7 @@ import telebot
 from telebot.types import Message, CallbackQuery
 
 from data.config import ADMIN_IDS
-from services.order_service import get_stats, get_orders_count, get_orders_page
+from services.order_service import get_stats, get_all_orders, get_items_for_order
 from services.product_service import add_new_product, remove_product, list_all_products
 
 
@@ -79,6 +79,13 @@ def register_admin_menu(bot: telebot.TeleBot):
                 pass
             show_orders_page(bot, call.message.chat.id, page)
 
+        elif d == "admin_back":
+            try:
+                bot.delete_message(call.message.chat.id, call.message.message_id)
+            except:
+                pass
+            show_admin_menu(bot, call.message.chat.id)
+
         elif d == "admin_exit":
             try:
                 bot.delete_message(call.message.chat.id, call.message.message_id)
@@ -88,28 +95,37 @@ def register_admin_menu(bot: telebot.TeleBot):
 
     def show_orders_page(bot: telebot.TeleBot, chat_id: int, page: int):
         page_size = 5
-        total_orders = get_orders_count()
-        orders = get_orders_page(page, page_size)
+        orders = get_all_orders()
+        total = len(orders)
+        start = page * page_size
+        end = start + page_size
+        page_orders = orders[start:end]
 
-        if not orders:
+        if not page_orders:
             text = "Немає замовлень на цій сторінці."
         else:
-            text = f"Сторінка {page + 1} / {((total_orders - 1) // page_size) + 1}\n\n"
-            for o in orders:
+            text = f"Сторінка {page + 1} із {((total - 1) // page_size) + 1}\n\n"
+            for o in page_orders:
                 text += (
-                    f"Order #{o['id']}\n"
-                    f"Name: {o['full_name']}\n"
-                    f"Sum: {o['total_price']}\n"
-                    f"Delivery: {o['delivery_method']}\n"
-                    f"Address: {o['address']}\n"
-                    f"Phone: {o['phone']}\n"
-                    f"Comment: {o['comment']}\n"
-                    f"Date: {o['created_at']}\n"
-                    "--------------------------------\n"
+                    f"Замовлення №{o['id']}\n"
+                    f"Ім'я: {o['full_name']}\n"
+                    f"Сума: {o['total_price']}\n"
+                    f"Доставка: {o['delivery_method']}\n"
+                    f"Адреса: {o['address']}\n"
+                    f"Телефон: {o['phone']}\n"
+                    f"Коментар: {o['comment']}\n"
+                    f"Дата: {o['created_at']}\n"
                 )
 
-        kb = telebot.types.InlineKeyboardMarkup()
+                items = get_items_for_order(o["id"])
+                if items:
+                    text += "Товари:\n"
+                    for it in items:
+                        subtotal = it["product_price"] * it["quantity"]
+                        text += f"  {it['product_name']} x {it['quantity']} = {subtotal}\n"
+                text += "--------------------------------\n"
 
+        kb = telebot.types.InlineKeyboardMarkup()
         if page > 0:
             kb.add(
                 telebot.types.InlineKeyboardButton(
@@ -117,17 +133,18 @@ def register_admin_menu(bot: telebot.TeleBot):
                     callback_data=f"admin_list_orders_page:{page - 1}"
                 )
             )
-
-        if (page + 1) * page_size < total_orders:
+        if end < total:
             kb.add(
                 telebot.types.InlineKeyboardButton(
                     "Наступна",
                     callback_data=f"admin_list_orders_page:{page + 1}"
                 )
             )
-
         kb.add(
-            telebot.types.InlineKeyboardButton("Вийти", callback_data="admin_exit")
+            telebot.types.InlineKeyboardButton(
+                "Назад",
+                callback_data="admin_back"
+            )
         )
 
         bot.send_message(chat_id, text, reply_markup=kb)

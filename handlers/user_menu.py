@@ -1,18 +1,20 @@
-import telebot
 import random
+
+import telebot
 from telebot.types import Message, CallbackQuery
 
 import handlers.cart as cart
+from data.config import ADMIN_IDS
 from keyboards.inline import make_main_menu, make_products_list, make_brand_menu
 from keyboards.reply import main_reply_keyboard
+from services.order_service import get_user_orders, get_items_for_order
 from services.product_service import get_all_brands, list_products_by_brand
 from services.user_service import ensure_user_exists
-from data.config import ADMIN_IDS
 
 FRIENDLY_STICKER_ID = "👋"
 
-def register_user_menu(bot: telebot.TeleBot):
 
+def register_user_menu(bot: telebot.TeleBot):
     greetings = [
         "Привіт, {}! Радий тебе бачити!",
         "Вітаю, {}! Сподіваюся, у тебе все добре!",
@@ -75,25 +77,36 @@ def register_user_menu(bot: telebot.TeleBot):
         elif message.text == "Переглянути кошик":
             cart.show_cart(bot, message.from_user.id, message.chat.id)
 
+
         elif message.text == "Мої замовлення":
-            from services.order_service import get_user_orders
+
+
             orders = get_user_orders(message.from_user.id)
+
             if not orders:
                 bot.send_message(
                     message.chat.id,
                     "У тебе поки немає замовлень. Може, зазирнемо в каталог?",
                     reply_markup=main_reply_keyboard(message.from_user.id)
                 )
+
             else:
                 txt = "Ось твої попередні замовлення:\n"
                 for o in orders:
                     txt += f"№{o['id']} | сума {o['total_price']} грн | {o['created_at']}\n"
+                    items = get_items_for_order(o["id"])
+                    if items:
+                        txt += "Товари:\n"
+                        for it in items:
+                            subtotal = it["product_price"] * it["quantity"]
+                            txt += f"  {it['product_name']} x {it['quantity']} = {subtotal} грн\n"
+                    txt += "--------------------------------\n"
                 txt += "\nЯкщо маєш питання, пиши нам!"
+
                 bot.send_message(
                     message.chat.id,
                     txt,
-                    reply_markup=main_reply_keyboard(message.from_user.id)
-                )
+                    reply_markup=main_reply_keyboard(message.from_user.id))
 
         elif message.text == "Адмін-меню":
             if message.from_user.id in ADMIN_IDS:
@@ -187,4 +200,3 @@ def register_user_menu(bot: telebot.TeleBot):
             f"Товари бренду {brand}:",
             reply_markup=kb
         )
-

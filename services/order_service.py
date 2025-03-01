@@ -37,5 +37,10 @@ def get_stats():
 def get_orders_count():
     return order_repository.get_orders_count()
 
+
 def get_orders_page(page, page_size):
     return order_repository.get_orders_page(page, page_size)
+
+
+def get_items_for_order(order_id):
+    return order_repository.get_items_for_order(order_id)

@@ -88,3 +88,19 @@ def get_orders_page(page: int, page_size: int):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+def get_items_for_order(order_id):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT p.name AS product_name,
+               p.price AS product_price,
+               oi.quantity AS quantity
+        FROM order_items AS oi
+        JOIN products AS p ON p.id = oi.product_id
+        WHERE oi.order_id = ?
+    """, (order_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
