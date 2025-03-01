@@ -33,7 +33,7 @@ This is a Telegram bot for ordering decorative fish food. It features a dynamic 
 - **pyTelegramBotAPI 4.26.0**
 - SQLite (bundled with Python)
 
-## Project Structure (Typical)
+## Project Structure
 
 fish-order-telegram-bot/
 ├── bot.py
@@ -57,7 +57,6 @@ fish-order-telegram-bot/
 │   ├── admin_menu.py
 │   └── fallback.py
 └── ...
-
 
 ## Installation
 
