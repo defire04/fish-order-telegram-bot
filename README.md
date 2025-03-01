@@ -34,7 +34,7 @@ This is a Telegram bot for ordering decorative fish food. It features a dynamic 
 - SQLite (bundled with Python)
 
 ## Project Structure
-
+ ```bash
 fish-order-telegram-bot/
 ├── bot.py
 ├── requirements.txt
@@ -57,7 +57,7 @@ fish-order-telegram-bot/
 │   ├── admin_menu.py
 │   └── fallback.py
 └── ...
-
+ ```
 ## Installation
 
 1. **Clone the repository**:
