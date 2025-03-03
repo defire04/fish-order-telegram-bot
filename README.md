@@ -77,11 +77,6 @@ fish-order-telegram-bot/
    BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
    ```
 
-4. **Initialize the database** (if needed). For example:
-   ```python
-   from data.db import init_db
-   init_db()
-   ```
 
 ## Running the Bot
 
