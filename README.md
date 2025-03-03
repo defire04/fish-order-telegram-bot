@@ -40,7 +40,7 @@ fish-order-telegram-bot/
 ├── requirements.txt
 ├── Dockerfile
 ├── data/
-│   ├── config.py
+│   ├── config.origin
 │   └── db.py
 ├── repositories/
 │   ├── product_repository.py

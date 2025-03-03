@@ -1,0 +1,4 @@
+BOT_TOKEN = "TOKEN"
+DB_PATH = "data/database.db"
+
+ADMIN_IDS = []
