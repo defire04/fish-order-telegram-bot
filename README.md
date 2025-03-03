@@ -64,7 +64,7 @@ fish-order-telegram-bot/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/fish-order-telegram-bot.git
+   git clone https://github.com/defire04/fish-order-telegram-bot.git
    ```
 
 2. **Install dependencies**:
@@ -91,8 +91,8 @@ In Telegram, type `/start` to interact with your bot.
 If you prefer Docker, use the provided **Dockerfile**:
 
 ```bash
-docker build -t fish-order-bot .
-docker run -it --rm fish-order-bot
+docker build -t fish-order-telegram-bot .
+docker run -it --rm fish-order-telegram-bot
 ```
 
 Adjust the `BOT_TOKEN` by editing `data/config.py` or using an environment variable approach before building.
