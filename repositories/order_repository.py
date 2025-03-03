@@ -1,6 +1,3 @@
-
-from data.db import get_connection
-
 def get_all_orders():
     conn = get_connection()
     cur = conn.cursor()
@@ -8,6 +5,7 @@ def get_all_orders():
     rows = cur.fetchall()
     conn.close()
     return rows
+
 
 def create_order_ext(user_id, total_price, delivery_method, address, phone, comment, full_name):
     conn = get_connection()
@@ -36,6 +34,7 @@ def add_order_item(order_id, product_id, quantity):
     conn.commit()
     conn.close()
 
+
 def get_orders_by_user(user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -48,6 +47,7 @@ def get_orders_by_user(user_id):
     conn.close()
     return rows
 
+
 def get_orders_count():
     conn = get_connection()
     cur = conn.cursor()
@@ -55,6 +55,7 @@ def get_orders_count():
     row = cur.fetchone()
     conn.close()
     return row["cnt"] if row else 0
+
 
 def get_total_revenue():
     conn = get_connection()
@@ -64,6 +65,7 @@ def get_total_revenue():
     conn.close()
     return row["total"] if row["total"] else 0.0
 
+
 def get_all_products():
     conn = get_connection()
     cur = conn.cursor()
@@ -72,8 +74,8 @@ def get_all_products():
     conn.close()
     return rows
 
-from data.db import get_connection
 
+from data.db import get_connection
 
 
 def get_orders_page(page: int, page_size: int):
@@ -89,6 +91,7 @@ def get_orders_page(page: int, page_size: int):
     conn.close()
     return rows
 
+
 def get_items_for_order(order_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -103,4 +106,3 @@ def get_items_for_order(order_id):
     rows = cur.fetchall()
     conn.close()
     return rows
-
