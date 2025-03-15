@@ -1,34 +1,44 @@
+from typing import List, Dict, Any
 
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-def make_main_menu():
-    kb = InlineKeyboardMarkup()
-    kb.add(InlineKeyboardButton("Каталог", callback_data="menu_catalog"))
-    kb.add(InlineKeyboardButton("Мій кошик", callback_data="menu_cart"))
-    kb.add(InlineKeyboardButton("Оформити замовлення", callback_data="menu_order"))
-    return kb
 
-def make_admin_menu():
-    kb = InlineKeyboardMarkup()
-    kb.add(InlineKeyboardButton("Додати товар", callback_data="admin_add_product"))
-    kb.add(InlineKeyboardButton("Видалити товар", callback_data="admin_del_product"))
-    kb.add(InlineKeyboardButton("Статистика", callback_data="admin_stats"))
-    kb.add(InlineKeyboardButton("Вихід", callback_data="go_main"))
-    return kb
+def make_main_menu() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Каталог", callback_data="menu_catalog")],
+            [InlineKeyboardButton(text="Кошик", callback_data="menu_cart")],
+            [InlineKeyboardButton(text="Оформити замовлення", callback_data="menu_order")]
+        ]
+    )
+    return keyboard
 
-def make_brand_menu(brands):
 
-    kb = InlineKeyboardMarkup()
-    for b in brands:
-        kb.add(InlineKeyboardButton(b, callback_data=f"brand:{b}"))
-    kb.add(InlineKeyboardButton("Назад", callback_data="go_main"))
-    return kb
+def make_brand_menu(brands: List[str]) -> InlineKeyboardMarkup:
+    buttons = []
 
-def make_products_list(products):
+    for brand in brands:
+        buttons.append([InlineKeyboardButton(text=brand, callback_data=f"brand:{brand}")])
 
-    kb = InlineKeyboardMarkup()
-    for p in products:
-        text = f"{p['name']} - {p['price']} грн"
-        kb.add(InlineKeyboardButton(text, callback_data=f"viewprod:{p['id']}"))
-    kb.add(InlineKeyboardButton("Назад", callback_data="go_main"))
-    return kb
+    buttons.append([InlineKeyboardButton(text="Назад", callback_data="go_main")])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def make_products_list(products: List[Dict[str, Any]]) -> InlineKeyboardMarkup:
+    buttons = []
+
+    brand = products[0]['brand'] if products else ""
+
+    for product in products:
+        buttons.append([
+            InlineKeyboardButton(
+                text=f"{product['name']} - {product['price']} грн",
+                callback_data=f"viewprod:{product['id']}"
+            )
+        ])
+
+    buttons.append([InlineKeyboardButton(text="Назад до брендів", callback_data="menu_catalog")])
+    buttons.append([InlineKeyboardButton(text="Головне меню", callback_data="go_main")])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

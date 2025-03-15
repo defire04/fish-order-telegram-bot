@@ -1,6 +1,7 @@
-# Fish Order Telegram Bot
+# Quad Bike Shop Telegram Bot (aiogram)
 
-This is a Telegram bot for ordering decorative fish food. It features a dynamic catalog of multiple brands, a shopping cart system, and an extended checkout flow (including full name, phone number, comment, and multiple delivery options). It also provides an admin panel to add or remove products, view the product list, track orders, and display basic statistics.
+This repository contains a Telegram bot for selling quad bikes (ATVs) using **aiogram 3.x**. It provides a dynamic product catalog, a shopping cart flow, an order checkout process, and an admin panel for managing products and viewing orders.
+
 
 ## Key Features
 
@@ -30,12 +31,12 @@ This is a Telegram bot for ordering decorative fish food. It features a dynamic 
 ## System Requirements
 
 - **Python 3.12**
-- **pyTelegramBotAPI 4.26.0**
-- SQLite (bundled with Python)
+- **aiogram 3.18.0** (or similar 3.x version)
+- **SQLite** for data storage (bundled with Python)
 
 ## Project Structure
  ```bash
-fish-order-telegram-bot/
+quad-bike-shop-aiogram/
 ├── bot.py
 ├── requirements.txt
 ├── Dockerfile
@@ -64,7 +65,7 @@ fish-order-telegram-bot/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/defire04/fish-order-telegram-bot.git
+   git clone -b quad-bike-shop-aiogram --single-branch https://github.com/defire04/universal-shop-telegram-bot.git
    ```
 
 2. **Install dependencies**:
@@ -91,8 +92,8 @@ In Telegram, type `/start` to interact with your bot.
 If you prefer Docker, use the provided **Dockerfile**:
 
 ```bash
-docker build -t fish-order-telegram-bot .
-docker run -it --rm fish-order-telegram-bot
+docker build -t quad-bike-shop-aiogram .
+docker run -it --rm quad-bike-shop-aiogram
 ```
 
 Adjust the `BOT_TOKEN` by editing `data/config.py` or using an environment variable approach before building.

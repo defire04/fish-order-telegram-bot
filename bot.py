@@ -1,32 +1,38 @@
-import telebot
-import telebot.apihelper
+import asyncio
+import logging
 
+from aiogram import Bot, Dispatcher
+from aiogram.client.bot import DefaultBotProperties
 
 from data.config import BOT_TOKEN
 from data.db import init_db
-from handlers.admin_menu import register_admin_menu
-from handlers.cart import register_cart_handlers
-from handlers.fallback import register_fallback
-from handlers.user_menu import register_user_menu
-from middlewares.logging_middleware import setup_middleware
+from handlers.admin_menu import admin_router
+from handlers.cart import cart_router
+from handlers.fallback import fallback_router
+from handlers.user_menu import user_router
 
-telebot.apihelper.ENABLE_MIDDLEWARE = True
+logging.basicConfig(level=logging.INFO)
 
-def main():
-    bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
+async def main():
+    # Ініціалізація БД
     init_db()
 
-    register_user_menu(bot)
-    register_cart_handlers(bot)
-    register_admin_menu(bot)
-    register_fallback(bot)
+    # Створюємо екземпляр бота
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties())
 
+    # Створюємо диспетчер
+    dp = Dispatcher()
 
-    setup_middleware(bot)
-    print("Bot started...")
-    bot.infinity_polling()
+    # Підключаємо (include) наші роутери
+    dp.include_router(user_router)
+    dp.include_router(cart_router)
+    dp.include_router(admin_router)
+    dp.include_router(fallback_router)
+
+    # Запускаємо полінг
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

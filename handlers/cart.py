@@ -1,220 +1,290 @@
-import telebot
-from telebot.types import CallbackQuery, Message
-from services.product_service import get_product
-from services.order_service import create_new_order_ext
+from typing import Dict
+
+from aiogram import Router, F
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+
 from keyboards.inline import make_main_menu
-from data.config import ADMIN_IDS
+from services.order_service import create_new_order_ext
+from services.product_service import get_product
 
-user_carts = {}
-temp_quantities = {}
-user_flow = {}
 
-def register_cart_handlers(bot: telebot.TeleBot):
+class OrderStates(StatesGroup):
+    full_name = State()
+    phone = State()
+    comment = State()
+    delivery_method = State()
+    address = State()
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("viewprod:"))
-    def callback_view_product(call: CallbackQuery):
-        pid = int(call.data.split(":")[1])
-        p = get_product(pid)
-        if not p:
-            bot.answer_callback_query(call.id, "Товар не знайдено.")
-            return
-        temp_quantities[(call.from_user.id, pid)] = 1
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        send_product_view(bot, call.message.chat.id, p, 1)
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("qty:"))
-    def callback_change_quantity(call: CallbackQuery):
-        parts = call.data.split(":")
-        action = parts[1]
-        pid = int(parts[2])
-        key = (call.from_user.id, pid)
-        if key not in temp_quantities:
-            temp_quantities[key] = 1
-        qty = temp_quantities[key]
-        pr = get_product(pid)
-        if not pr:
-            bot.answer_callback_query(call.id, "Товар не знайдено.")
-            return
+cart_router = Router()
 
-        if action == "inc":
-            qty += 1
-            temp_quantities[key] = qty
-            bot.answer_callback_query(call.id, f"Кількість: {qty}")
-            send_updated_product_view(bot, call.message.chat.id, call.message.message_id, pr, qty)
-        elif action == "dec":
-            if qty > 1:
-                qty -= 1
-                temp_quantities[key] = qty
-                bot.answer_callback_query(call.id, f"Кількість: {qty}")
-                send_updated_product_view(bot, call.message.chat.id, call.message.message_id, pr, qty)
-            else:
-                bot.answer_callback_query(call.id, "Мінімальна кількість 1")
-        elif action == "add":
-            if call.from_user.id not in user_carts:
-                user_carts[call.from_user.id] = {}
-            if pid not in user_carts[call.from_user.id]:
-                user_carts[call.from_user.id][pid] = 0
-            user_carts[call.from_user.id][pid] += qty
-            temp_quantities.pop(key, None)
-            bot.answer_callback_query(call.id, f"Додано в кошик x{qty}")
-            try:
-                bot.delete_message(call.message.chat.id, call.message.message_id)
-            except:
-                pass
-            bot.send_message(call.message.chat.id, "Товар додано до кошика!", reply_markup=make_main_menu())
+user_carts: Dict[int, Dict[int, int]] = {}
+temp_quantities: Dict[tuple, int] = {}
+user_flow: Dict[int, Dict[str, str]] = {}
 
-    @bot.callback_query_handler(func=lambda call: call.data == "cart_clear")
-    def on_cart_clear(call: CallbackQuery):
-        user_carts[call.from_user.id] = {}
-        bot.answer_callback_query(call.id, "Кошик очищено!")
-        try:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-        except:
-            pass
-        bot.send_message(call.message.chat.id, "Кошик очищено.", reply_markup=make_main_menu())
 
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("delivery:"))
-    def handle_delivery_method(call: CallbackQuery):
-        m = call.data.split(":", 1)[1]
-        if call.from_user.id not in user_flow:
-            user_flow[call.from_user.id] = {}
-        user_flow[call.from_user.id]["delivery_method"] = m
+@cart_router.callback_query(F.data.startswith("viewprod:"))
+async def callback_view_product(callback: CallbackQuery):
+    pid = int(callback.data.split(":")[1])
+    product = get_product(pid)
 
-        if m == "samov":
-            try:
-                bot.delete_message(call.message.chat.id, call.message.message_id)
-            except:
-                pass
-            finalize_order(bot, call.from_user.id, call.message.chat.id, "Самовивіз")
-        elif m == "cur":
-            try:
-                bot.delete_message(call.message.chat.id, call.message.message_id)
-            except:
-                pass
-            ms = bot.send_message(call.message.chat.id, "Вкажіть адресу для кур'єра:")
-            bot.register_next_step_handler(ms, lambda mm: handle_address(bot, mm, "cur"))
-        elif m in ["nova", "ukr"]:
-            try:
-                bot.delete_message(call.message.chat.id, call.message.message_id)
-            except:
-                pass
-            ms2 = bot.send_message(call.message.chat.id, "Вкажіть номер відділення:")
-            bot.register_next_step_handler(ms2, lambda mm: handle_address(bot, mm, m))
-
-    def handle_address(bot: telebot.TeleBot, msg: Message, method):
-        user_flow[msg.from_user.id]["address"] = msg.text.strip()
-        finalize_order(bot, msg.from_user.id, msg.chat.id, method)
-
-    def finalize_order(bot: telebot.TeleBot, user_id: int, chat_id: int, method):
-        c = user_carts.get(user_id, {})
-        if not c:
-            bot.send_message(chat_id, "Кошик порожній. Скасовано.", reply_markup=make_main_menu())
-            return
-        phone = user_flow[user_id].get("phone", "")
-        comment = user_flow[user_id].get("comment", "")
-        fn = user_flow[user_id].get("full_name", "")
-        addr = ""
-        if method == "samov":
-            addr = "Самовивіз"
-        else:
-            addr = user_flow[user_id].get("address", "")
-
-        from services.order_service import create_new_order_ext
-        oid = create_new_order_ext(
-            user_id, c,
-            method, addr,
-            phone, comment,
-            fn
-        )
-        user_carts[user_id] = {}
-        user_flow.pop(user_id, None)
-        bot.send_message(chat_id, f"Вітаю, замовлення №{oid} оформлено! Дякуємо!\n Оператор з вами зв'яжеться для уточнення деталей.", reply_markup=make_main_menu())
-
-def show_cart(bot: telebot.TeleBot, user_id: int, chat_id: int):
-    c = user_carts.get(user_id, {})
-    if not c:
-        bot.send_message(chat_id, "Ваш кошик порожній.", reply_markup=make_main_menu())
+    if not product:
+        await callback.answer("Товар не знайдено.")
         return
+
+    temp_quantities[(callback.from_user.id, pid)] = 1
+
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    await send_product_view(callback.message, product, 1)
+    await callback.answer()
+
+
+@cart_router.callback_query(F.data.startswith("qty:"))
+async def callback_change_quantity(callback: CallbackQuery):
+    parts = callback.data.split(":")
+    action = parts[1]
+    pid = int(parts[2])
+    key = (callback.from_user.id, pid)
+
+    if key not in temp_quantities:
+        temp_quantities[key] = 1
+
+    qty = temp_quantities[key]
+    product = get_product(pid)
+
+    if not product:
+        await callback.answer("Товар не знайдено.")
+        return
+
+    if action == "inc":
+        qty += 1
+        temp_quantities[key] = qty
+        await callback.answer(f"Кількість: {qty}")
+        await send_updated_product_view(callback.message, product, qty)
+
+    elif action == "dec":
+        if qty > 1:
+            qty -= 1
+            temp_quantities[key] = qty
+            await callback.answer(f"Кількість: {qty}")
+            await send_updated_product_view(callback.message, product, qty)
+        else:
+            await callback.answer("Мінімальна кількість 1")
+
+    elif action == "add":
+        if callback.from_user.id not in user_carts:
+            user_carts[callback.from_user.id] = {}
+
+        if pid not in user_carts[callback.from_user.id]:
+            user_carts[callback.from_user.id][pid] = 0
+
+        user_carts[callback.from_user.id][pid] += qty
+        temp_quantities.pop(key, None)
+
+        await callback.answer(f"Додано в кошик x{qty}")
+
+        try:
+            await callback.message.delete()
+        except:
+            pass
+
+        await callback.message.answer("Товар додано до кошика!", reply_markup=make_main_menu())
+
+
+@cart_router.callback_query(F.data == "cart_clear")
+async def on_cart_clear(callback: CallbackQuery):
+    user_carts[callback.from_user.id] = {}
+    await callback.answer("Кошик очищено!")
+
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    await callback.message.answer("Кошик очищено.", reply_markup=make_main_menu())
+
+
+@cart_router.callback_query(F.data.startswith("delivery:"))
+async def handle_delivery_method(callback: CallbackQuery, state: FSMContext):
+    method = callback.data.split(":", 1)[1]
+
+    await state.update_data(delivery_method=method)
+
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    if method == "samov":
+        await state.update_data(address="Самовивіз")
+        await finalize_order(callback.from_user.id, callback.message, state)
+
+    elif method == "cur":
+        await callback.message.answer("Вкажіть адресу для кур'єра:")
+        await state.set_state(OrderStates.address)
+
+    elif method in ["nova", "ukr"]:
+        await callback.message.answer("Вкажіть номер відділення:")
+        await state.set_state(OrderStates.address)
+
+    await callback.answer()
+
+
+@cart_router.message(OrderStates.address)
+async def handle_address(message: Message, state: FSMContext):
+    await state.update_data(address=message.text.strip())
+
+    await finalize_order(message.from_user.id, message, state)
+
+
+async def finalize_order(user_id: int, message: Message, state: FSMContext):
+    cart = user_carts.get(user_id, {})
+    if not cart:
+        await message.answer("Кошик порожній. Скасовано.", reply_markup=make_main_menu())
+        await state.clear()
+        return
+
+    data = await state.get_data()
+    phone = data.get("phone", "")
+    comment = data.get("comment", "")
+    full_name = data.get("full_name", "")
+    delivery_method = data.get("delivery_method", "")
+    address = data.get("address", "")
+
+    order_id = create_new_order_ext(
+        user_id, cart,
+        delivery_method, address,
+        phone, comment,
+        full_name
+    )
+
+    user_carts[user_id] = {}
+    await state.clear()
+
+    await message.answer(
+        f"Вітаю, замовлення №{order_id} оформлено! Дякуємо!\n"
+        f"Оператор з вами зв'яжеться для уточнення деталей.",
+        reply_markup=make_main_menu()
+    )
+
+
+async def show_cart(message: Message, user_id: int = None):
+    if user_id is None:
+        user_id = message.from_user.id
+
+    cart = user_carts.get(user_id, {})
+
+    if not cart:
+        await message.answer("Ваш кошик порожній.", reply_markup=make_main_menu())
+        return
+
     text = "Ваш кошик:\n"
     total = 0
-    from services.product_service import get_product
-    for pid, q in c.items():
-        pr = get_product(pid)
-        if pr:
-            s = pr["price"] * q
-            total += s
-            text += f"{pr['name']} x {q} = {s} грн\n"
+
+    for pid, qty in cart.items():
+        product = get_product(pid)
+        if product:
+            subtotal = product["price"] * qty
+            total += subtotal
+            text += f"{product['name']} x {qty} = {subtotal} грн\n"
+
     text += f"\nЗагальна сума: {total} грн"
 
-    kb = telebot.types.InlineKeyboardMarkup()
-    kb.add(telebot.types.InlineKeyboardButton("Очистити кошик", callback_data="cart_clear"))
-    kb.add(telebot.types.InlineKeyboardButton("Оформити замовлення", callback_data="menu_order"))
-    kb.add(telebot.types.InlineKeyboardButton("Назад", callback_data="go_main"))
-    bot.send_message(chat_id, text, reply_markup=kb)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Очистити кошик", callback_data="cart_clear")],
+        [InlineKeyboardButton(text="Оформити замовлення", callback_data="menu_order")],
+        [InlineKeyboardButton(text="Назад", callback_data="go_main")]
+    ])
 
-def send_product_view(bot: telebot.TeleBot, chat_id: int, prod, qty: int):
-    brand = prod['brand']
-    cap = f"<b>{prod['name']}</b> ({brand})\nЦіна: {prod['price']} грн\n\nКількість: {qty}"
+    await message.answer(text, reply_markup=kb)
 
-    kb = telebot.types.InlineKeyboardMarkup()
-    kb.row(
-        telebot.types.InlineKeyboardButton("–", callback_data=f"qty:dec:{prod['id']}"),
-        telebot.types.InlineKeyboardButton(str(qty), callback_data="none"),
-        telebot.types.InlineKeyboardButton("+", callback_data=f"qty:inc:{prod['id']}")
-    )
-    kb.add(telebot.types.InlineKeyboardButton("Додати в кошик", callback_data=f"qty:add:{prod['id']}"))
 
-    kb.add(telebot.types.InlineKeyboardButton("Назад", callback_data=f"back_to_brand:{brand}"))
+async def send_product_view(message: Message, product: dict, qty: int):
+    brand = product['brand']
+    caption = f"<b>{product['name']}</b> ({brand})\nЦіна: {product['price']} грн\n\nКількість: {qty}"
 
-    if prod['photo_url']:
-        bot.send_photo(chat_id, prod['photo_url'], caption=cap, parse_mode="HTML", reply_markup=kb)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="–", callback_data=f"qty:dec:{product['id']}"),
+            InlineKeyboardButton(text=str(qty), callback_data="none"),
+            InlineKeyboardButton(text="+", callback_data=f"qty:inc:{product['id']}")
+        ],
+        [InlineKeyboardButton(text="Додати в кошик", callback_data=f"qty:add:{product['id']}")],
+        [InlineKeyboardButton(text="Назад", callback_data=f"back_to_brand:{brand}")]
+    ])
+
+    if product['photo_url']:
+        await message.answer_photo(product['photo_url'], caption=caption, parse_mode="HTML", reply_markup=kb)
     else:
-        bot.send_message(chat_id, cap, parse_mode="HTML", reply_markup=kb)
+        await message.answer(caption, parse_mode="HTML", reply_markup=kb)
 
 
-def send_updated_product_view(bot: telebot.TeleBot, chat_id: int, message_id: int, prod, qty: int):
+async def send_updated_product_view(message: Message, product: dict, qty: int):
     try:
-        bot.delete_message(chat_id, message_id)
+        await message.delete()
     except:
         pass
-    send_product_view(bot, chat_id, prod, qty)
+    await send_product_view(message, product, qty)
 
-def confirm_order(bot: telebot.TeleBot, call: CallbackQuery):
-    c = user_carts.get(call.from_user.id, {})
-    if not c:
-        bot.answer_callback_query(call.id, "Кошик порожній.")
+
+async def confirm_order(callback: CallbackQuery, state: FSMContext):
+    cart = user_carts.get(callback.from_user.id, {})
+    if not cart:
+        await callback.answer("Кошик порожній.")
+
+        from keyboards.inline import make_main_menu
+        await callback.message.answer(
+            "Ваш кошик порожній. Спочатку додайте товари до кошика.",
+            reply_markup=make_main_menu()
+        )
         return
+
     try:
-        bot.delete_message(call.message.chat.id, call.message.message_id)
+        await callback.message.delete()
     except:
         pass
 
-    user_flow[call.from_user.id] = {}
-    msg = bot.send_message(call.message.chat.id, "Вкажіть ваше ПІБ (повне ім'я):")
-    bot.register_next_step_handler(msg, lambda m: ask_fio(bot, m))
+    await callback.message.answer("Вкажіть ваше ПІБ (повне ім'я):")
+    await state.set_state(OrderStates.full_name)
+    await callback.answer()
 
-def ask_fio(bot: telebot.TeleBot, msg: Message):
-    user_flow[msg.from_user.id]["full_name"] = msg.text.strip()
-    nxt = bot.send_message(msg.chat.id, "Вкажіть свій номер телефону:")
-    bot.register_next_step_handler(nxt, lambda mm: ask_comment(bot, mm))
+@cart_router.message(OrderStates.full_name)
+async def process_full_name(message: Message, state: FSMContext):
+    await state.update_data(full_name=message.text.strip())
 
-def ask_comment(bot: telebot.TeleBot, msg: Message):
-    user_flow[msg.from_user.id]["phone"] = msg.text.strip()
-    nxt = bot.send_message(msg.chat.id, "Якщо маєте коментар, напишіть тут (або «Немає»):")
-    bot.register_next_step_handler(nxt, lambda mm: ask_delivery_method(bot, mm))
+    await message.answer("Вкажіть свій номер телефону:")
+    await state.set_state(OrderStates.phone)
 
-def ask_delivery_method(bot: telebot.TeleBot, msg: Message):
-    user_flow[msg.from_user.id]["comment"] = msg.text.strip()
-    kb = telebot.types.InlineKeyboardMarkup()
-    kb.add(
-        telebot.types.InlineKeyboardButton("Нова Пошта", callback_data="delivery:nova"),
-        telebot.types.InlineKeyboardButton("УкрПошта", callback_data="delivery:ukr")
-    )
-    kb.add(
-        telebot.types.InlineKeyboardButton("Кур'єр", callback_data="delivery:cur"),
-        telebot.types.InlineKeyboardButton("Самовивіз", callback_data="delivery:samov")
-    )
-    bot.send_message(msg.chat.id, "Оберіть спосіб доставки:", reply_markup=kb)
+
+@cart_router.message(OrderStates.phone)
+async def process_phone(message: Message, state: FSMContext):
+    await state.update_data(phone=message.text.strip())
+
+    await message.answer("Якщо маєте коментар, напишіть тут (або «Немає»):")
+    await state.set_state(OrderStates.comment)
+
+
+@cart_router.message(OrderStates.comment)
+async def process_comment(message: Message, state: FSMContext):
+    await state.update_data(comment=message.text.strip())
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="Нова Пошта", callback_data="delivery:nova"),
+            InlineKeyboardButton(text="УкрПошта", callback_data="delivery:ukr")
+        ],
+        [
+            InlineKeyboardButton(text="Кур'єр", callback_data="delivery:cur"),
+            InlineKeyboardButton(text="Самовивіз", callback_data="delivery:samov")
+        ]
+    ])
+
+    await message.answer("Оберіть спосіб доставки:", reply_markup=kb)
+    await state.set_state(OrderStates.delivery_method)
