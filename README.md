@@ -35,7 +35,7 @@ This is a Telegram bot for ordering decorative fish food. It features a dynamic 
 
 ## Project Structure
  ```bash
-fish-order-telegram-bot/
+fish-shop-telebot/
 ├── bot.py
 ├── requirements.txt
 ├── Dockerfile
@@ -64,7 +64,7 @@ fish-order-telegram-bot/
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/defire04/fish-order-telegram-bot.git
+   git clone -b fish-shop-telebot --single-branch https://github.com/defire04/universal-shop-telegram-bot.git fish-shop-telebot
    ```
 
 2. **Install dependencies**:
@@ -91,8 +91,8 @@ In Telegram, type `/start` to interact with your bot.
 If you prefer Docker, use the provided **Dockerfile**:
 
 ```bash
-docker build -t fish-order-telegram-bot .
-docker run -it --rm fish-order-telegram-bot
+docker build -t fish-shop-telebot .
+docker run -it --rm fish-shop-telebot
 ```
 
 Adjust the `BOT_TOKEN` by editing `data/config.py` or using an environment variable approach before building.
