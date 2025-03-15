@@ -64,9 +64,9 @@ quad-bike-shop-aiogram/
 ## Installation
 
 1. **Clone the repository**:
-   ```bash
+```bash
   git clone -b quad-bike-shop-aiogram --single-branch https://github.com/defire04/universal-shop-telegram-bot.git quad-bike-shop-aiogram
-   ```
+  ```
 
 2. **Install dependencies**:
    ```bash
